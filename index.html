@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaia DR3 資料擷取工具</title>
+<style>
+  :root {
+    --bg: #0d1220; --panel: #161d31; --panel2: #1c2440;
+    --border: #2a3558; --text: #e6eaf5; --muted: #93a0c4;
+    --accent: #5b8cff; --accent2: #38d39f; --err: #ff6b7a;
+  }
+  * { box-sizing: border-box; min-width: 0; }
+  html, body { max-width: 100%; overflow-x: hidden; }
+  body {
+    margin: 0; padding: 24px; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 16px; max-width: 1280px; margin: 0 auto; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-bottom: 16px;
+    min-width: 0; max-width: 100%;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 12px; color: var(--accent); letter-spacing: .5px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--text); font-size: 13px;
+  }
+  .row { display: flex; gap: 10px; } .row > div { flex: 1; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tabs button {
+    flex: 1; padding: 7px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--panel2); color: var(--muted); cursor: pointer; font-size: 13px;
+  }
+  .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
+  .cols label { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-size: 12.5px; color: var(--text); cursor: pointer; min-width: 0; }
+  .cols label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cols input { accent-color: var(--accent); flex-shrink: 0; }
+  .more-toggle { width: 100%; margin-top: 10px; }
+  .cols-scroll {
+    max-height: 320px; overflow-y: auto; overflow-x: hidden;
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-top: 8px;
+  }
+  .cols-scroll label {
+    display: flex; align-items: flex-start; gap: 6px; margin: 0; padding: 4px 2px;
+    font-size: 12px; color: var(--text); cursor: pointer; border-bottom: 1px solid var(--border);
+  }
+  .cols-scroll label:last-child { border-bottom: none; }
+  .cols-scroll label input { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent); }
+  .cols-scroll .ecol-name { font-family: Consolas, monospace; color: var(--text); }
+  .cols-scroll .ecol-unit { color: var(--accent2); }
+  .cols-scroll .ecol-desc { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .cols-scroll .ecol-empty { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0; }
+  .btn {
+    padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;
+    font-size: 14px; font-weight: 600;
+  }
+  .btn-primary { background: var(--accent2); color: #06281c; width: 100%; }
+  .btn-secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .actions { display: flex; gap: 10px; margin-top: 14px; }
+  .actions .btn { flex: 1; }
+  .outdir-row { display: flex; gap: 8px; }
+  .outdir-row input { flex: 1; }
+  #status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+  #status.err { color: var(--err); white-space: pre-wrap; }
+  #status.ok { color: var(--accent2); }
+  .result-path {
+    font-family: Consolas, monospace; font-size: 13px; background: var(--panel2);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+    word-break: break-all; margin: 8px 0;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { border: 1px solid var(--border); padding: 4px 8px; text-align: right; white-space: nowrap; }
+  th { background: var(--panel2); color: var(--accent); position: sticky; top: 0; }
+  .table-wrap { overflow: auto; max-height: 480px; max-width: 100%; border-radius: 6px; }
+  .adql {
+    font-family: Consolas, monospace; font-size: 12px; color: var(--muted);
+    background: var(--panel2); padding: 8px 10px; border-radius: 6px;
+    overflow-wrap: anywhere; margin-top: 10px;
+  }
+  .hidden { display: none; }
+  .meta { color: var(--muted); font-size: 12.5px; margin: 6px 0; }
+  .meta.ok { color: var(--accent2); }
+  .meta.err { color: var(--err); }
+  .grab-all {
+    display: flex; align-items: flex-start; gap: 7px; margin: 12px 0 0;
+    font-size: 13px; color: var(--text); cursor: pointer; line-height: 1.4;
+  }
+  .grab-all input { accent-color: var(--accent2); margin-top: 2px; flex-shrink: 0; }
+  input:disabled { opacity: .45; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div><!-- 左欄：查詢設定 -->
+    <h1>Gaia DR3 資料擷取工具</h1>
+    <div class="sub">資料來源：ESA Gaia Archive（gaiadr3.gaia_source，TAP/ADQL）</div>
+
+    <div class="card">
+      <h2>快速定位</h2>
+      <div class="sub" style="margin-bottom:8px">輸入星團／天體名稱（如 NGC 6910、M45）或座標（如 305.8 40.77）</div>
+      <div class="outdir-row">
+        <input type="text" id="objName" placeholder="NGC 6910"
+               onkeydown="if(event.key==='Enter')resolveObj()">
+        <button class="btn btn-secondary" id="btnResolve" onclick="resolveObj()">搜尋定位</button>
+      </div>
+      <div id="resolveInfo" class="meta"></div>
+    </div>
+
+    <div class="card">
+      <h2>1. 天區範圍</h2>
+      <div class="tabs">
+        <button id="tab-cone" class="active" onclick="setMode('cone')">錐形搜尋</button>
+        <button id="tab-box" onclick="setMode('box')">矩形範圍</button>
+      </div>
+      <div id="panel-cone">
+        <div class="row">
+          <div><label>中心 RA（度）</label><input type="number" id="ra" value="56.75" step="any"></div>
+          <div><label>中心 Dec（度）</label><input type="number" id="dec" value="24.12" step="any"></div>
+        </div>
+        <label>搜尋半徑（度）</label>
+        <input type="number" id="radius" value="0.5" step="any" min="0">
+      </div>
+      <div id="panel-box" class="hidden">
+        <div class="row">
+          <div><label>RA 最小（度）</label><input type="number" id="ra_min" value="56" step="any"></div>
+          <div><label>RA 最大（度）</label><input type="number" id="ra_max" value="57" step="any"></div>
+        </div>
+        <div class="row">
+          <div><label>Dec 最小（度）</label><input type="number" id="dec_min" value="23.5" step="any"></div>
+          <div><label>Dec 最大（度）</label><input type="number" id="dec_max" value="24.5" step="any"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. 欄位選擇</h2>
+      <div class="sub" style="margin-bottom:8px">常用欄位（已勾選 = 預設匯出）</div>
+      <div class="cols" id="colList"></div>
+      <button type="button" class="btn btn-secondary more-toggle" id="btnMoreCols" onclick="toggleMore()">顯示更多欄位（載入中…）</button>
+      <div id="moreColsWrap" class="hidden">
+        <input type="text" id="colFilter" placeholder="搜尋欄位名稱或說明…" oninput="renderExtraCols()">
+        <div class="cols-scroll" id="extraColList"></div>
+      </div>
+      <label>其他欄位（逗號分隔，選填）</label>
+      <input type="text" id="extraCols" placeholder="例如 pmra_error, phot_variable_flag">
+    </div>
+
+    <div class="card">
+      <h2>3. 篩選與輸出</h2>
+      <div class="row">
+        <div><label>G 星等上限（選填）</label><input type="number" id="mag_max" placeholder="例如 18" step="any"></div>
+        <div><label>視差下限 mas（選填）</label><input type="number" id="parallax_min" placeholder="例如 1" step="any"></div>
+      </div>
+      <div class="row">
+        <div><label>列數上限</label><input type="number" id="limit" value="10000" min="1"></div>
+        <div><label>檔案格式</label>
+          <select id="format">
+            <option value="csv">CSV</option>
+            <option value="votable">VOTable (.xml)</option>
+            <option value="json">JSON</option>
+          </select>
+        </div>
+      </div>
+      <label class="grab-all">
+        <input type="checkbox" id="grabAll" onchange="onGrabAllToggle()">
+        全部抓取此範圍（自動忽略列數上限，把符合條件的星全部下載）
+      </label>
+      <div id="grabAllInfo" class="meta"></div>
+      <label>匯出位置</label>
+      <div class="outdir-row">
+        <input type="text" id="outdir">
+        <button class="btn btn-secondary" onclick="pickFolder()">瀏覽…</button>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" id="btnPreview" onclick="preview()">預覽前 20 列</button>
+        <button class="btn btn-primary" id="btnExport" onclick="doExport()">匯出</button>
+      </div>
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <div><!-- 右欄：結果 -->
+    <div class="card hidden" id="exportCard">
+      <h2>匯出完成</h2>
+      <div class="meta" id="exportMeta"></div>
+      <div class="result-path" id="exportPath"></div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="openFolder()">開啟檔案位置</button>
+        <button class="btn btn-secondary" id="btnDownload" onclick="downloadFile()">另存下載</button>
+      </div>
+    </div>
+    <div class="card hidden" id="previewCard">
+      <h2>預覽結果</h2>
+      <div class="table-wrap"><table id="previewTable"></table></div>
+      <div class="adql" id="adqlBox"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/gaia_columns.js"></script>
+<script>
+const COLUMNS = [
+  ["source_id", "Source ID", true],
+  ["ra", "赤經 RA", true],
+  ["dec", "赤緯 Dec", true],
+  ["parallax", "視差", true],
+  ["parallax_error", "視差誤差", false],
+  ["pmra", "自行 RA", true],
+  ["pmdec", "自行 Dec", true],
+  ["phot_g_mean_mag", "G 星等", true],
+  ["phot_bp_mean_mag", "BP 星等", false],
+  ["phot_rp_mean_mag", "RP 星等", false],
+  ["bp_rp", "BP−RP 色指數", true],
+  ["radial_velocity", "徑向速度", false],
+  ["ruwe", "RUWE 品質指標", false],
+  ["teff_gspphot", "有效溫度", false],
+  ["distance_gspphot", "距離 (GSP-Phot)", false],
+  ["phot_g_n_obs", "G 觀測次數", false],
+];
+let mode = "cone";
+let lastExport = null;
+let moreOpen = false;
+let checkedExtra = new Set();
+
+const $ = id => document.getElementById(id);
+const escapeHtml = s => s.replace(/[&<>"']/g, c => ({
+  "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+}[c]));
+
+// 建立常用欄位核取方塊
+$("colList").innerHTML = COLUMNS.map(([name, label, on]) =>
+  `<label><input type="checkbox" value="${name}" ${on ? "checked" : ""}> ${label} <span style="color:var(--muted)">${name}</span></label>`
+).join("");
+
+// gaiadr3.gaia_source 完整欄位清單（來自 gaia_columns.js），排除已在常用清單中的欄位
+const COMMON_NAMES = new Set(COLUMNS.map(c => c[0]));
+const EXTRA_COLUMNS = (typeof ALL_COLUMNS !== "undefined" ? ALL_COLUMNS : [])
+  .filter(c => !COMMON_NAMES.has(c.n));
+
+function toggleMore() {
+  moreOpen = !moreOpen;
+  $("moreColsWrap").classList.toggle("hidden", !moreOpen);
+  $("btnMoreCols").textContent = moreOpen
+    ? "收合更多欄位"
+    : `顯示更多欄位（${EXTRA_COLUMNS.length} 個）`;
+  if (moreOpen) renderExtraCols();
+}
+
+function renderExtraCols() {
+  const q = $("colFilter").value.trim().toLowerCase();
+  const filtered = q
+    ? EXTRA_COLUMNS.filter(c => c.n.toLowerCase().includes(q) || c.d.toLowerCase().includes(q))
+    : EXTRA_COLUMNS;
+  const list = $("extraColList");
+  if (!filtered.length) {
+    list.innerHTML = `<div class="ecol-empty">找不到符合「${escapeHtml(q)}」的欄位</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(c => {
+    const unit = c.u ? ` <span class="ecol-unit">[${escapeHtml(c.u)}]</span>` : "";
+    const checked = checkedExtra.has(c.n) ? "checked" : "";
+    return `<label title="${escapeHtml(c.d)}">` +
+      `<input type="checkbox" data-name="${escapeHtml(c.n)}" ${checked}>` +
+      `<span><span class="ecol-name">${escapeHtml(c.n)}</span>${unit}` +
+      `<span class="ecol-desc">${escapeHtml(c.d)}</span></span></label>`;
+  }).join("");
+}
+
+$("extraColList").addEventListener("change", e => {
+  const input = e.target.closest("input[type=checkbox]");
+  if (!input) return;
+  const name = input.dataset.name;
+  if (input.checked) checkedExtra.add(name); else checkedExtra.delete(name);
+});
+
+$("btnMoreCols").textContent = `顯示更多欄位（${EXTRA_COLUMNS.length} 個）`;
+
+// 載入預設匯出資料夾
+fetch("/api/defaults").then(r => r.json()).then(d => { $("outdir").value = d.outdir; });
+
+function setMode(m) {
+  mode = m;
+  $("tab-cone").classList.toggle("active", m === "cone");
+  $("tab-box").classList.toggle("active", m === "box");
+  $("panel-cone").classList.toggle("hidden", m !== "cone");
+  $("panel-box").classList.toggle("hidden", m !== "box");
+}
+
+// 只含天區範圍與篩選（不含欄位）— 供 count 與 gatherParams 共用
+function regionParams() {
+  const p = { mode, mag_max: $("mag_max").value, parallax_min: $("parallax_min").value };
+  if (mode === "cone") {
+    p.ra = $("ra").value; p.dec = $("dec").value; p.radius = $("radius").value;
+  } else {
+    p.ra_min = $("ra_min").value; p.ra_max = $("ra_max").value;
+    p.dec_min = $("dec_min").value; p.dec_max = $("dec_max").value;
+  }
+  return p;
+}
+
+function gatherParams() {
+  const cols = [...document.querySelectorAll("#colList input:checked")].map(c => c.value);
+  checkedExtra.forEach(c => { if (!cols.includes(c)) cols.push(c); });
+  $("extraCols").value.split(",").map(s => s.trim()).filter(Boolean).forEach(c => {
+    if (!cols.includes(c)) cols.push(c);
+  });
+  if (!cols.length) throw new Error("請至少選擇一個欄位");
+  return { ...regionParams(), columns: cols,
+    limit: $("limit").value, format: $("format").value, outdir: $("outdir").value,
+    grab_all: $("grabAll").checked };
+}
+
+// 搜尋定位：輸入可以是座標（兩個數字）或天體名稱
+async function resolveObj() {
+  const raw = $("objName").value.trim();
+  const info = $("resolveInfo");
+  if (!raw) { info.textContent = "請先輸入名稱或座標"; info.className = "meta err"; return; }
+  const coord = raw.match(/^([-+]?\d+(?:\.\d+)?)\s*[, ]\s*([-+]?\d+(?:\.\d+)?)$/);
+  try {
+    let ra, dec, label;
+    if (coord) {
+      ra = coord[1]; dec = coord[2]; label = "已套用座標";
+    } else {
+      info.textContent = `解析「${raw}」中…`; info.className = "meta";
+      $("btnResolve").disabled = true;
+      const d = await api("/api/resolve", { name: raw });
+      ra = d.ra; dec = d.dec; label = `已定位「${raw}」`;
+    }
+    setMode("cone");
+    $("ra").value = ra; $("dec").value = dec;
+    info.textContent = `${label} → RA ${(+ra).toFixed(5)}°, Dec ${(+dec).toFixed(5)}°（已填入下方錐形搜尋）`;
+    info.className = "meta ok";
+    if ($("grabAll").checked) refreshCount();
+  } catch (e) {
+    info.textContent = e.message; info.className = "meta err";
+  } finally {
+    $("btnResolve").disabled = false;
+  }
+}
+
+// 「全部抓取」切換：勾選時停用列數上限並計算此範圍星數
+async function onGrabAllToggle() {
+  const on = $("grabAll").checked;
+  $("limit").disabled = on;
+  if (on) refreshCount();
+  else $("grabAllInfo").textContent = "";
+}
+
+async function refreshCount() {
+  const info = $("grabAllInfo");
+  try {
+    info.textContent = "計算此範圍星數中…"; info.className = "meta";
+    const d = await api("/api/count", regionParams());
+    const n = d.count;
+    let msg = `此範圍共 ${n.toLocaleString()} 顆星，匯出時將全部下載。`;
+    if (n > 500000) msg += " ⚠ 資料量很大，匯出可能需數分鐘。";
+    info.textContent = msg; info.className = "meta ok";
+  } catch (e) {
+    info.textContent = "星數計算失敗：" + e.message; info.className = "meta err";
+  }
+}
+
+function setStatus(msg, cls = "") { const s = $("status"); s.textContent = msg; s.className = cls; }
+
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+
+async function preview() {
+  try {
+    const p = gatherParams();
+    setStatus("查詢中（預覽）…");
+    $("btnPreview").disabled = true;
+    const d = await api("/api/preview", p);
+    const t = $("previewTable");
+    t.innerHTML = "<tr>" + d.columns.map(c => `<th>${c}</th>`).join("") + "</tr>" +
+      d.rows.map(row => "<tr>" + row.map(v => `<td>${v ?? ""}</td>`).join("") + "</tr>").join("");
+    $("adqlBox").textContent = "ADQL: " + d.adql;
+    $("previewCard").classList.remove("hidden");
+    setStatus(d.rows.length ? `預覽取得 ${d.rows.length} 列` : "查無資料，請調整範圍或篩選條件", "ok");
+  } catch (e) { setStatus(e.message, "err"); }
+  finally { $("btnPreview").disabled = false; }
+}
+
+async function doExport() {
+  try {
+    const p = gatherParams();
+    setStatus(p.grab_all
+      ? "全部抓取中：正在計算星數並下載完整資料，可能需要數分鐘…"
+      : "查詢並下載中，資料量大時可能需要數分鐘…");
+    $("btnExport").disabled = true;
+    const d = await api("/api/export", p);
+    lastExport = d;
+    $("exportPath").textContent = d.path;
+    $("exportMeta").textContent =
+      (d.rows != null ? `${d.rows.toLocaleString()} 列、` : "") +
+      `${(d.bytes / 1024).toFixed(1)} KB`;
+    $("adqlBox").textContent = "ADQL: " + d.adql;
+    $("exportCard").classList.remove("hidden");
+    setStatus("匯出完成 ✓", "ok");
+  } catch (e) { setStatus(e.message, "err"); }
+  finally { $("btnExport").disabled = false; }
+}
+
+async function openFolder() {
+  if (!lastExport) return;
+  try { await api("/api/open-folder", { path: lastExport.path }); }
+  catch (e) { setStatus(e.message, "err"); }
+}
+
+function downloadFile() {
+  if (!lastExport) return;
+  window.location = "/api/download?id=" + encodeURIComponent(lastExport.download_id);
+}
+
+async function pickFolder() {
+  try {
+    const d = await api("/api/pick-folder", {});
+    if (d.folder) $("outdir").value = d.folder;
+  } catch (e) { setStatus(e.message, "err"); }
+}
+</script>
+</body>
+</html>

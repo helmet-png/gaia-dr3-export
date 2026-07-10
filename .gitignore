@@ -1,0 +1,15 @@
+# Build artifacts (the .exe is distributed via GitHub Releases, not committed)
+dist/
+build/
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Personal / non-source
+*.pptx
+
+# OS
+Thumbs.db
+.DS_Store
