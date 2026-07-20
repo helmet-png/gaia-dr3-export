@@ -6,9 +6,21 @@
 <title>Gaia DR3 資料擷取工具</title>
 <style>
   :root {
-    --bg: #0d1220; --panel: #161d31; --panel2: #1c2440;
-    --border: #2a3558; --text: #e6eaf5; --muted: #93a0c4;
-    --accent: #5b8cff; --accent2: #38d39f; --err: #ff6b7a;
+    --bg: #f7f7f5; --panel: #ffffff; --panel2: #f2f2ef;
+    --border: #e4e4e0; --text: #1c1c1a; --muted: #6e6e68;
+    --accent: #1c1c1a; --accent2: #15734f; --err: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151515; --panel: #1e1e1e; --panel2: #262626;
+      --border: #333330; --text: #ebebe8; --muted: #a2a29b;
+      --accent: #ebebe8; --accent2: #59c99a; --err: #f08579;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151515; --panel: #1e1e1e; --panel2: #262626;
+    --border: #333330; --text: #ebebe8; --muted: #a2a29b;
+    --accent: #ebebe8; --accent2: #59c99a; --err: #f08579;
   }
   * { box-sizing: border-box; min-width: 0; }
   html, body { max-width: 100%; overflow-x: hidden; }
@@ -18,14 +30,15 @@
   }
   h1 { font-size: 22px; margin: 0 0 4px; }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
-  .layout { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 16px; max-width: 1280px; margin: 0 auto; }
+  .layout { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 16px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
   .card {
     background: var(--panel); border: 1px solid var(--border);
     border-radius: 10px; padding: 16px; margin-bottom: 16px;
     min-width: 0; max-width: 100%;
   }
-  .card h2 { font-size: 14px; margin: 0 0 12px; color: var(--accent); letter-spacing: .5px; }
+  .card h2 { font-size: 13px; font-weight: 500; margin: 0 0 12px; color: var(--muted); letter-spacing: .5px; }
   label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 3px; }
   input[type=text], input[type=number], select {
     width: 100%; padding: 7px 9px; border-radius: 6px; border: 1px solid var(--border);
@@ -37,7 +50,7 @@
     flex: 1; padding: 7px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--panel2); color: var(--muted); cursor: pointer; font-size: 13px;
   }
-  .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tabs button.active { background: var(--text); color: var(--panel); border-color: var(--text); }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; }
   .cols label { display: flex; align-items: center; gap: 6px; margin: 2px 0; font-size: 12.5px; color: var(--text); cursor: pointer; min-width: 0; }
   .cols label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -59,10 +72,11 @@
   .cols-scroll .ecol-empty { color: var(--muted); font-size: 12px; text-align: center; padding: 12px 0; }
   .btn {
     padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;
-    font-size: 14px; font-weight: 600;
+    font-size: 14px; font-weight: 500;
   }
-  .btn-primary { background: var(--accent2); color: #06281c; width: 100%; }
-  .btn-secondary { background: var(--panel2); color: var(--text); border: 1px solid var(--border); }
+  .btn-primary { background: var(--text); color: var(--panel); width: 100%; }
+  .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover:not(:disabled) { background: var(--panel2); }
   .btn:disabled { opacity: .5; cursor: wait; }
   .actions { display: flex; gap: 10px; margin-top: 14px; }
   .actions .btn { flex: 1; }
@@ -78,7 +92,7 @@
   }
   table { border-collapse: collapse; width: 100%; font-size: 12px; }
   th, td { border: 1px solid var(--border); padding: 4px 8px; text-align: right; white-space: nowrap; }
-  th { background: var(--panel2); color: var(--accent); position: sticky; top: 0; }
+  th { background: var(--panel2); color: var(--text); position: sticky; top: 0; }
   .table-wrap { overflow: auto; max-height: 480px; max-width: 100%; border-radius: 6px; }
   .adql {
     font-family: Consolas, monospace; font-size: 12px; color: var(--muted);
@@ -100,7 +114,10 @@
 <body>
 <div class="layout">
   <div><!-- 左欄：查詢設定 -->
-    <h1>Gaia DR3 資料擷取工具</h1>
+    <div class="head">
+      <h1>Gaia DR3 資料擷取工具</h1>
+      <button class="btn btn-secondary" id="theme-btn" onclick="cycleTheme()" style="font-size:13px;padding:6px 12px">主題：自動</button>
+    </div>
     <div class="sub">資料來源：ESA Gaia Archive（gaiadr3.gaia_source，TAP/ADQL）</div>
 
     <div class="card">
@@ -207,6 +224,21 @@
 
 <script src="/gaia_columns.js"></script>
 <script>
+const THEMES = ["auto", "light", "dark"];
+const THEME_NAMES = {auto: "自動", light: "淺色", dark: "深色"};
+function applyTheme() {
+  const t = localStorage.theme || "auto";
+  if (t === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  document.getElementById("theme-btn").textContent = "主題：" + THEME_NAMES[t];
+}
+function cycleTheme() {
+  const t = localStorage.theme || "auto";
+  localStorage.theme = THEMES[(THEMES.indexOf(t) + 1) % THEMES.length];
+  applyTheme();
+}
+applyTheme();
+
 const COLUMNS = [
   ["source_id", "Source ID", true],
   ["ra", "赤經 RA", true],
@@ -361,7 +393,7 @@ async function refreshCount() {
     const d = await api("/api/count", regionParams());
     const n = d.count;
     let msg = `此範圍共 ${n.toLocaleString()} 顆星，匯出時將全部下載。`;
-    if (n > 500000) msg += " ⚠ 資料量很大，匯出可能需數分鐘。";
+    if (n > 500000) msg += " 資料量很大，匯出可能需數分鐘。";
     info.textContent = msg; info.className = "meta ok";
   } catch (e) {
     info.textContent = "星數計算失敗：" + e.message; info.className = "meta err";
@@ -409,7 +441,7 @@ async function doExport() {
       `${(d.bytes / 1024).toFixed(1)} KB`;
     $("adqlBox").textContent = "ADQL: " + d.adql;
     $("exportCard").classList.remove("hidden");
-    setStatus("匯出完成 ✓", "ok");
+    setStatus("匯出完成", "ok");
   } catch (e) { setStatus(e.message, "err"); }
   finally { $("btnExport").disabled = false; }
 }
